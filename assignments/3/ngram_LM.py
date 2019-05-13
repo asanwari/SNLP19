@@ -41,9 +41,8 @@ class ngram_LM:
 		self.vocab = vocab
 		
 		self.V = len(vocab)
-		print('vocab length is {}'.format(self.V))
+
 		self.ngram_counts = ngram_counts
-		print('ngram_counts length is {}'.format(len(self.ngram_counts.keys())))
 
 		if n == 1:
 			self.total_counts = sum(self.ngram_counts.values())
@@ -85,6 +84,22 @@ class ngram_LM:
 	
 	def estimate_smoothed_prob(self, history, word, alpha = 0.5):
 		"""Estimate probability of a word given a history with Lidstone smoothing."""
+
+		if history == '':
+			# unigram
+			word_frequency = self.ngram_counts[tuple([word])]
+			return (word_frequency + alpha)/(alpha*self.V +self.total_counts)
+
+		else:
+			# bigram
+			word_frequency = self.ngram_counts[tuple([history, word])]
+			# history_count = sum([self.ngram_counts[key] for key in self.ngram_counts if key[0] == history])
+			# history_count = self.history_count[history]
+			history_count = self.ngram_counts[tuple([history])]
+			# print('his: {}',format(history))
+			# print('his count {}'.format(history_count))
+			return (word_frequency + alpha)/(alpha*self.V + history_count)
+
 		
 	   
 	# YOUR CODE HERE
@@ -130,7 +145,24 @@ class ngram_LM:
 
 	def test_smoohted_LM(self):
 		"""Test whether or not the smoothed probability mass sums up to one."""
-
+		precision = 10**-8
+				 
+		if self.n == 1:
+				 
+			P_sum = sum(self.estimate_smoothed_prob('', w) for w in self.vocab)
+			
+			assert abs(1.0 - P_sum) < precision, 'Probability mass does not sum up to one.'
+				 
+		elif self.n == 2:
+			histories = ['the', 'in', 'at', 'blue', 'white']
+				 
+			for h in histories:
+				 
+				P_sum = sum(self.estimate_smoothed_prob(h, w) for w in self.vocab)
+				
+				assert abs(1.0 - P_sum) < precision, 'Probability mass does not sum up to one for history' + h
+					 
+		print('TEST SUCCESSFUL!')
 		# YOUR CODE HERE
 
 

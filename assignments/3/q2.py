@@ -37,7 +37,6 @@ def main():
 
 	bigram_frequencies = Counter(bigrams)
 	bigrams = None
-	bigram_frequencies = bigram_frequencies+unigram_frequencies
 	print_frequent_ngrams(bigram_frequencies, 15, 2)
 
 
@@ -45,9 +44,7 @@ def main():
 	unigram_vocabulary = list(unigram_frequencies.keys())
 	unigram_vocabulary = [i[0] for i in unigram_vocabulary]
 
-
-	bigram_vocabulary = list(unigram_frequencies.keys())
-	bigram_vocabulary = [i[0] for i in bigram_vocabulary]
+	bigram_vocabulary = [i for i in unigram_vocabulary]
 	bigram_vocabulary.extend(['<s>','</s>'])
 
 	print('The ttr is {}'.format(calculate_ttr(unigram_frequencies)))
@@ -68,6 +65,10 @@ def main():
 	print(bigram_LM.estimate_prob('of', 'the'))
 	bigram_LM.test_LM()
 	print('bigram LM tested in {} secs'.format(time.time() - t4))
+
+
+	unigram_LM.test_smoohted_LM()
+	bigram_LM.test_smoohted_LM()
 
 
 if __name__ == "__main__":

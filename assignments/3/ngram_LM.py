@@ -44,19 +44,21 @@ class ngram_LM:
 
 		self.ngram_counts = ngram_counts
 
-		if n == 1:
-			self.total_counts = sum(self.ngram_counts.values())
-		elif n == 2:
-			self.history_count = defaultdict()
-			for history in vocab:
-				a = 'd'
-				# sums over counts of all pairs (history, v) where v belongs to the vocabulary list
-				# for all elements in vocabulary list
-				# self.history_count[history] = sum([self.ngram_counts[tuple([history, v])] for v in self.vocab])
-
-
 	# YOUR CODE HERE
 	# START BY MAKING THE RIGHT COUNTS FOR THIS PARTICULAR self.n 
+		# for unigrams, we only need total word count
+		if n == 1:
+			self.total_count = sum(self.ngram_counts.values())
+		# for bigrams, we need total count wrt each word. In our language, it is history count. 
+		elif n == 2:
+			self.history_count = Counter()
+			for k, v in self.ngram_counts.items():
+				self.history_count[k[0]] = self.history_count[k[0]] + v
+			# since we only count for the first word in the tuple, we will always
+			# miss counting </s>. However, since the frequency of </s> is the same
+			# as the frequency of <s>, we can simply assign it equal to it.
+			self.history_count['</s>'] = self.history_count['<s>']
+
 
 		
 	   
@@ -69,16 +71,14 @@ class ngram_LM:
 		if history == '':
 			# unigram
 			word_frequency = self.ngram_counts[tuple([word])]
-			return word_frequency/self.total_counts
+			return word_frequency/self.total_count
 
 		else:
 			# bigram
 			word_frequency = self.ngram_counts[tuple([history, word])]
-			# history_count = sum([self.ngram_counts[key] for key in self.ngram_counts if key[0] == history])
-			# history_count = self.history_count[history]
-			history_count = self.ngram_counts[tuple([history])]
-			# print('his: {}',format(history))
-			# print('his count {}'.format(history_count))
+			history_count = self.history_count[history]
+			if history_count == 0:
+				return 0
 			return word_frequency/history_count
 
 	
@@ -88,16 +88,15 @@ class ngram_LM:
 		if history == '':
 			# unigram
 			word_frequency = self.ngram_counts[tuple([word])]
-			return (word_frequency + alpha)/(alpha*self.V +self.total_counts)
+			return (word_frequency + alpha)/(alpha*self.V +self.total_count)
 
 		else:
 			# bigram
 			word_frequency = self.ngram_counts[tuple([history, word])]
-			# history_count = sum([self.ngram_counts[key] for key in self.ngram_counts if key[0] == history])
-			# history_count = self.history_count[history]
-			history_count = self.ngram_counts[tuple([history])]
-			# print('his: {}',format(history))
-			# print('his count {}'.format(history_count))
+			history_count = self.history_count[history]
+			# handle div by 0
+			if history_count == 0:
+				return 0
 			return (word_frequency + alpha)/(alpha*self.V + history_count)
 
 		

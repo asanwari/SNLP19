@@ -99,8 +99,8 @@ def main():
     score3 = bigram_LM.score_sentence(ngrams3)
 
     print('Score of "Yesterday was I at home": ', score1)
-    print('Score of "Yesterday I was at home":', score2)
-    print('Score of "I was at home yesterday":', score3)
+    print('Score of "Yesterday I was at home": ', score2)
+    print('Score of "I was at home yesterday": ', score3)
 
 
 

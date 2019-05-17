@@ -1,15 +1,20 @@
 import ngram_LM as lm
 import sys
 import time
-from collections import Counter
+from collections import Counter, defaultdict
 import time
 
 def print_frequent_ngrams(ngram_counter, top_n, ngram_length):
-
     sorted_ngrams = sorted(ngram_counter.items(), key=lambda count: count[1], reverse=True)
     print('The top {} {}-grams are:'.format(top_n, ngram_length))
     print(sorted_ngrams[0:top_n])
 
+def print_top_n(dictionary, top_n, message=""):
+    sorted_dict = sorted(dictionary.items(), key=lambda count: count[1], reverse=True)
+    print('\n--------------------\n')
+    print(message,'\n')
+    print(sorted_dict[0:top_n])
+    print('\n--------------------\n\n')
 
 def calculate_ttr(ngram_counter):
 	types = len(ngram_counter.keys())
@@ -33,11 +38,11 @@ def main():
 
 	unigram_frequencies = Counter(unigrams)
 	unigrams = None
-	print_frequent_ngrams(unigram_frequencies, 15, 1)
+	print_top_n(unigram_frequencies, 15, 'The top 15 unigrams are: ')
 
 	bigram_frequencies = Counter(bigrams)
 	bigrams = None
-	print_frequent_ngrams(bigram_frequencies, 15, 2)
+	print_top_n(bigram_frequencies, 15, 'The top 15 bigrams are: ')
 
 
 	# 2.1 c
@@ -67,6 +72,16 @@ def main():
 	print('bigram LM tested in {} secs'.format(time.time() - t4))
 
 
+	# 2.1 e
+	histories = ['blue', 'green', 'white', 'black', 'natural', 'artificial', 'global', 'domestic']
+	for history in histories:
+		history_prob_dist = defaultdict()
+		for word in bigram_LM.vocab:
+			history_prob_dist[word] = bigram_LM.estimate_prob(history, word)
+		print_top_n(history_prob_dist, 10, 'The top 10 for history {} are:'.format(history))
+
+
+	# 2.2 b
 	unigram_LM.test_smoohted_LM()
 	bigram_LM.test_smoohted_LM()
 

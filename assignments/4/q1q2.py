@@ -42,9 +42,9 @@ def unified_phoneme_set(phoneme_list):
 
     return list(phoneme_set)
 
-def plot_distribution(distributions, names):
+def plot_distribution(distributions, descriptions):
     num_rows = np.sqrt(len(distributions))
-    for distribution, name, i in zip(distributions, names, list(np.arange(len(distributions)))):
+    for distribution, name, i in zip(distributions, descriptions, list(np.arange(len(distributions)))):
         x = [x[0] for x in sorted(distribution.items(), key=lambda kv: kv[1])]
         y = [x[1] for x in sorted(distribution.items(), key=lambda kv: kv[1])]
 
@@ -74,7 +74,7 @@ def percentage_unseen(corpus, lm):
     unseen_percentage = unseen_frequency / len(corpus)
     return unseen_percentage
 
-def plot_perplexity_chart(corpus, lm, name):
+def plot_perplexity_chart(corpus, lm, description):
     alphas = np.arange(0.1, 1.1, 0.1)
     perplexities = []
     for alpha in alphas:
@@ -83,8 +83,23 @@ def plot_perplexity_chart(corpus, lm, name):
 
     fig, ax = plt.subplots()
     ax.plot(alphas, perplexities)
-    ax.set(title='Perplexity vs. alpha for ' + name)
+    ax.set(title='Perplexity vs. alpha for ' + description)
     plt.show()
+
+def plot_neg_log_prob(sentence_bigrams, bigram_lm, description=''):
+    words = []
+    neg_log_probs = []
+    for bigram in sentence_bigrams:
+        neg_log_prob = -1 * bigram_lm.logP(bigram[0], bigram[1])
+        words.append(bigram[1])
+        neg_log_probs.append(neg_log_prob)
+
+    fig, ax = plt.subplots()
+    plt.plot(list(range(1,len(words)+1)), neg_log_probs)
+    plt.xticks(list(range(1,len(words)+1)), words)
+    ax.set(title=description)
+    plt.show()
+
 
 def main():
     IPA_EN = 'ipa_corpus/corpus.ipa.en'
@@ -127,7 +142,6 @@ def main():
     print(kl_divs)
 
     # 2.1 constructing lm
-    print('\n\n***************** 2.1  **********************')
     train_unigrams = []
     train_bigrams = []
     f = open(TRAIN_CORPUS, 'r', encoding='utf-8')
@@ -160,7 +174,7 @@ def main():
         test_wiki_bigrams.extend(lm.word_ngrams(sentence, 2))
 
     # 2.1 c computing perplexity
-    print('\n\n***************** 2.1 c  **********************')
+    print('\n\n***************** 2.1 c **********************')
     print('Perplexity Simple - Smoothed - Unigram: {}\tBigram: {}'.format(unigram_lm.perplexity(test_simple_unigrams, 0.2), bigram_lm.perplexity(test_simple_bigrams, 0.2)))
     print('Perplexity Simple - Unsmoothed - Unigram: {}\tBigram: {}'.format(unigram_lm.perplexity(test_simple_unigrams, 0), bigram_lm.perplexity(test_simple_bigrams, 0)))
     print('Perplexity Wiki - Smoothed - Unigram: {}\tBigram: {}'.format(unigram_lm.perplexity(test_wiki_unigrams, 0.2), bigram_lm.perplexity(test_wiki_bigrams, 0.2)))
@@ -181,7 +195,7 @@ def main():
     plot_perplexity_chart(test_wiki_bigrams, bigram_lm, 'Wiki Bigram')
 
     # 2.2 a calculating sentence scores for yoda and english
-    print('\n\n***************** 2.2 a  **********************')
+    print('\n\n***************** 2.2 a **********************')
     yoda_sentences = []
     english_sentences = []
     yoda_bigrams = []
@@ -190,26 +204,48 @@ def main():
     for line in f:
         if line == '\n':
             continue
-        sentence = lm.word_ngrams(line, 2)
-        english_sentences.append(line)
+        sentence = lm.word_ngrams(line.rstrip(), 2)
+        english_sentences.append(line.rstrip())
         english_bigrams.append(sentence)
     f = open(YODA_CORPUS, 'r', encoding='utf-8')
     for line in f:
         if line == '\n':
             continue
-        sentence = lm.word_ngrams(line, 2)
-        yoda_sentences.append(line)
+        sentence = lm.word_ngrams(line.rstrip(), 2)
+        yoda_sentences.append(line.rstrip())
         yoda_bigrams.append(sentence)
     eng_scores = []
     yoda_scores = []
-    for eng_sentence, yoda_sentence in zip(english_bigrams, yoda_bigrams):
-        eng_scores.append(round(bigram_lm.score_sentence(eng_sentence), 2))
-        yoda_scores.append(round(bigram_lm.score_sentence(yoda_sentence), 2))
+    for english_bigram, yoda_bigram in zip(english_bigrams, yoda_bigrams):
+        eng_scores.append(round(bigram_lm.score_sentence(english_bigram), 2))
+        yoda_scores.append(round(bigram_lm.score_sentence(yoda_bigram), 2))
     eng_scores = np.array(eng_scores)
     yoda_scores = np.array(yoda_scores)
 
     score_matrix = pd.DataFrame({'Eng': english_sentences, 'Yoda': yoda_sentences, 'Eng Score': eng_scores, 'Yoda Score': yoda_scores, 'Diff': yoda_scores - eng_scores})
     print(score_matrix)
+
+    # 2.2 b
+    print('\n\n***************** 2.2 b **********************')
+    largest_diff_eng = score_matrix['Eng'][score_matrix['Diff'].argmax()]
+    largest_diff_yoda = score_matrix['Yoda'][score_matrix['Diff'].argmax()]
+    smallest_diff_eng = score_matrix['Eng'][score_matrix['Diff'].argmin()]
+    smallest_diff_yoda = score_matrix['Yoda'][score_matrix['Diff'].argmin()]
+
+    print('Largest diff Eng:', largest_diff_eng)
+    print('Largest diff Yoda:', largest_diff_yoda)
+    print('Smallest diff Eng:', smallest_diff_eng)
+    print('Smallest diff Yoda:', smallest_diff_yoda)
+
+    largest_diff_eng_bigrams = english_bigrams[english_sentences.index(largest_diff_eng)]
+    largest_diff_yoda_bigrams = yoda_bigrams[yoda_sentences.index(largest_diff_yoda)]
+    smallest_diff_eng_bigrams = english_bigrams[english_sentences.index(smallest_diff_eng)]
+    smallest_diff_yoda_bigrams = yoda_bigrams[yoda_sentences.index(smallest_diff_yoda)]
+
+    plot_neg_log_prob(largest_diff_eng_bigrams, bigram_lm, largest_diff_eng)
+    plot_neg_log_prob(largest_diff_yoda_bigrams, bigram_lm, largest_diff_yoda)
+    plot_neg_log_prob(smallest_diff_eng_bigrams, bigram_lm, smallest_diff_eng)
+    plot_neg_log_prob(smallest_diff_yoda_bigrams, bigram_lm, smallest_diff_yoda)
 
 
 if __name__ == "__main__":

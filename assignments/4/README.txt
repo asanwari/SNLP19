@@ -1,5 +1,5 @@
 How to run:
 
-python q2.py <name_of_corpora_file>
+python q1q2.py
 
-example python q2.py corpus.sent.en.train
+note: paths to the corpora are specified in the first lines of the main method. Adjust to your local directory

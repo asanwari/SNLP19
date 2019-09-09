@@ -2,7 +2,10 @@ import numpy as np
 import pandas as pd
 import csv
 import re
+from collections import OrderedDict
 
+
+################################################
 print('preparing feature extraction module ...')
 # preparation steps. This code runs only once
 # 1. prepare lexicon datasets
@@ -30,6 +33,16 @@ for k, v in sentiment140_unigrams.items():
 for k, v in sentiment140_bigrams.items():
     sentiment140_bigrams[k] = v['score']
 
+# read word clusters. convert into a dict where key is word and value is cluster. Also keep list of all clusters.
+word_clusters = pd.read_csv('word_clusters.tsv', sep='\t', names=['cluster','word','n_occur'], header=None, quoting=csv.QUOTE_NONE, error_bad_lines=False).drop(['n_occur'],axis=1)
+cluster_set = list(word_clusters['cluster'].unique())
+word_clustres = word_clusters[~word_clusters.duplicated(subset='word', keep='first')].set_index('word')
+word_clusters = word_clusters.to_dict(orient='index')
+
+for k, v in word_clusters.items():
+    word_clusters[k] = v['cluster']
+
+###########################################################
 
 
 # functions to extract each group of features
@@ -126,14 +139,36 @@ def get_elongated_words_features(sent):
 
     return [elongated_words_counter]
 
+def get_pos_features(pos_tags):
+    # num of occurrence of each pos tag
+    # set of possible tags. see: http://www.cs.cmu.edu/~ark/TweetNLP/gimpel+etal.acl11.pdf
+    possible_tags = ['N', 'O', 'S', '^', 'Z', 'L', 'M', 'V', 'A', 'R', '!', 'D', 'P', '&', 'T', 'X', 'Y', '#', '@', '~', 'U', 'E', '$', ',', 'G']
+    tag_counts = []
+    for tag in possible_tags:
+        tag_counts.append(pos_tags.count(tag))
+    return tag_counts
 
-def extract_all_features(tweet):
-    sent = tweet.split()
+
+def get_word_cluster_features(sent):
+    # occurence of each of the ~1000 word clusters provided by the CMU NLP tool
+    cluster_count = OrderedDict({cluster : 0 for cluster in cluster_set})   # ordered dict to preserve the order of the feature vector
+    for word in sent:
+        if word in word_clusters:
+            cluster = word_clusters[word]
+            cluster_count[cluster] = 1
+
+    return list(cluster_count.values())
+
+def extract_all_features(tweet_row):
+    sent = tweet_row['tweet'].split()
+    pos_tags = tweet_row['pos']
     features = []
     features.extend(get_lexicon_features(sent))
     features.extend(get_hashtag_features(sent))
     features.extend(get_punctuation_features(sent))
     features.extend(get_all_caps_features(sent))
     features.extend(get_elongated_words_features(sent))
+    features.extend(get_pos_features(pos_tags))
+    features.extend(get_word_cluster_features(sent))
 
     return features

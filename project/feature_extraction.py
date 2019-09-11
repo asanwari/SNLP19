@@ -42,6 +42,24 @@ word_clusters = word_clusters.to_dict(orient='index')
 for k, v in word_clusters.items():
     word_clusters[k] = v['cluster']
 
+
+# gather all character 3-grams from train and dev sets.
+tweets_train = pd.read_csv('train_final_out.tsv', sep='\t', names=['tweet', 'class', 'untokinzed_tweet'], header=None, quoting=csv.QUOTE_NONE, error_bad_lines=False)['tweet'].str.cat(sep=' ')
+tweets_dev = pd.read_csv('dev_final_out.tsv', sep='\t', names=['tweet', 'class', 'untokinzed_tweet'], header=None, quoting=csv.QUOTE_NONE, error_bad_lines=False)['tweet'].str.cat(sep=' ')
+
+bigrams = set()
+three_grams = set()
+
+for word in tweets_train.split():
+    bigrams.update([word[i:i+2] for i in range(len(word)-2+1)])
+    three_grams.update([word[i:i+3] for i in range(len(word)-3+1)])
+
+for word in tweets_dev.split():
+    bigrams.update([word[i:i+2] for i in range(len(word)-2+1)])
+    three_grams.update([word[i:i+3] for i in range(len(word)-3+1)])
+
+
+
 ###########################################################
 
 
@@ -83,19 +101,38 @@ def get_lexicon_features(sent):
     sentiment140_unigram_features.append(len([s for s in sentiment140_unigram_scores if s > 0]))
     sentiment140_bigram_features.append(len([s for s in sentiment140_bigram_scores if s > 0]))
 
-        # b. sum of scores
+        # b. num of scores < 0
+    nrc_unigram_features.append(len([s for s in nrc_unigram_scores if s < 0]))
+    nrc_bigram_features.append(len([s for s in nrc_bigram_scores if s < 0]))
+    sentiment140_unigram_features.append(len([s for s in sentiment140_unigram_scores if s < 0]))
+    sentiment140_bigram_features.append(len([s for s in sentiment140_bigram_scores if s < 0]))
+
+        # c. sum of scores
     nrc_unigram_features.append(sum(nrc_unigram_scores))
     nrc_bigram_features.append(sum(nrc_bigram_scores))
     sentiment140_unigram_features.append(sum(sentiment140_unigram_scores))
     sentiment140_bigram_features.append(sum(sentiment140_bigram_scores))
 
-        # c. max score. if there are no scores at all, then 0. -10 is the lowest possible score.
+        # d. sum of scores < 0
+    nrc_unigram_features.append(sum([s for s in nrc_unigram_scores if s < 0]))
+    nrc_bigram_features.append(sum([s for s in nrc_bigram_scores if s < 0]))
+    sentiment140_unigram_features.append(sum([s for s in sentiment140_unigram_scores if s < 0]))
+    sentiment140_bigram_features.append(sum([s for s in sentiment140_bigram_scores if s < 0]))
+
+        # e. max score. if there are no scores at all, then 0. -10 is the lowest possible score.
     nrc_unigram_features.append(max([-10 * len(nrc_unigram_scores)] + nrc_unigram_scores))
     nrc_bigram_features.append(max([-10 * len(nrc_bigram_scores)] + nrc_bigram_scores))
     sentiment140_unigram_features.append(max([-10 * len(sentiment140_unigram_scores)] + sentiment140_unigram_scores))
     sentiment140_bigram_features.append(max([-10 * len(sentiment140_bigram_scores)] + sentiment140_bigram_scores))
 
-        # d. last score that is > 0. if no score > 0, then 0.
+        # f. min score. if there are no scores at all, then 0. -10 is the lowest possible score.
+    nrc_unigram_features.append(min([10 * len(nrc_unigram_scores)] + nrc_unigram_scores))
+    nrc_bigram_features.append(min([10 * len(nrc_bigram_scores)] + nrc_bigram_scores))
+    sentiment140_unigram_features.append(min([10 * len(sentiment140_unigram_scores)] + sentiment140_unigram_scores))
+    sentiment140_bigram_features.append(min([10 * len(sentiment140_bigram_scores)] + sentiment140_bigram_scores))
+
+
+        # g. last score that is > 0. if no score > 0, then 0.
     nrc_unigram_features.append(([0]+[s for s in nrc_unigram_scores if s > 0])[-1])
     nrc_bigram_features.append(([0]+[s for s in nrc_bigram_scores if s > 0])[-1])
     sentiment140_unigram_features.append(([0]+[s for s in sentiment140_unigram_scores if s > 0])[-1])
@@ -151,13 +188,39 @@ def get_pos_features(pos_tags):
 
 def get_word_cluster_features(sent):
     # occurence of each of the ~1000 word clusters provided by the CMU NLP tool
-    cluster_count = OrderedDict({cluster : 0 for cluster in cluster_set})   # ordered dict to preserve the order of the feature vector
+    cluster_presence = OrderedDict({cluster : 0 for cluster in cluster_set})   # ordered dict to preserve the order of the feature vector
     for word in sent:
         if word in word_clusters:
             cluster = word_clusters[word]
-            cluster_count[cluster] = 1
+            cluster_presence[cluster] = 1
 
-    return list(cluster_count.values())
+    return list(cluster_presence.values())
+
+
+def get_character_bigram_features(sent):
+    # the presence or absence of each of the character bigrams (~3.2K)
+    n = 2
+    bigram_presence = OrderedDict({bigram : 0 for bigram in bigrams})   # ordered dict to preserve the order of the feature vector
+    for word in sent:
+        word_grams = [word[i:i+n] for i in range(len(word)-n+1)]
+        for gram in word_grams:
+            if gram in bigram_presence:
+                bigram_presence[gram] = 1
+
+    return list(bigram_presence.values())
+
+
+def get_character_three_gram_features(sent):
+    # the presence or absence of each of the character 3-grams (~15.4K)
+    n = 3
+    three_gram_presence = OrderedDict({three_gram : 0 for three_gram in three_grams})   # ordered dict to preserve the order of the feature vector
+    for word in sent:
+        word_grams = [word[i:i+n] for i in range(len(word)-n+1)]
+        for gram in word_grams:
+            if gram in three_gram_presence:
+                three_gram_presence[gram] = 1
+
+    return list(three_gram_presence.values())
 
 def extract_all_features(tweet_row):
     sent = tweet_row['tweet'].split()
@@ -170,5 +233,7 @@ def extract_all_features(tweet_row):
     features.extend(get_elongated_words_features(sent))
     features.extend(get_pos_features(pos_tags))
     features.extend(get_word_cluster_features(sent))
+    #features.extend(get_character_bigram_features(sent))
+    features.extend(get_character_three_gram_features(sent))
 
     return features

@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from sklearn.svm import SVC
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
 from sklearn.neighbors import KNeighborsClassifier
 import csv
 from datetime import datetime
@@ -34,23 +34,33 @@ def main():
     tweets_dev['pos'] = pos_dev
     tweets_test['pos'] = pos_test
 
-    tweets_train = pd.concat([tweets_train[tweets_train['class']=='OFF'], tweets_train[tweets_train['class'] == 'NOT'].head(3400)], ignore_index=True)
+    tweets_train = pd.concat([tweets_train[tweets_train['class']=='OFF'], tweets_train[tweets_train['class']=='NOT'].head(3400)], ignore_index=True)
 
     # extract features
-    print('extracting features ...')
     d2 = datetime.now()
-    features_train = []
-    for index, row in tweets_train.iterrows():
-        features_train.append(extract_all_features(row))
 
-    features_dev = []
-    for index, row in tweets_dev.iterrows():
-        features_dev.append(extract_all_features(row))
+    if os.path.exists('features_train.pickle') & os.path.exists('features_dev.pickle') & os.path.exists('features_test.pickle'):
+        print('features found on disk. reading ...')
+        features_train = pickle.load(open( "features_train.pickle", "rb" ))
+        features_dev = pickle.load(open( "features_dev.pickle", "rb" ))
+        features_test = pickle.load(open( "features_test.pickle", "rb" ))
+    else:
+        print('extracting features ...')
+        features_train = []
+        for index, row in tweets_train.iterrows():
+            features_train.append(extract_all_features(row))
 
-    features_test = []
-    for index, row in tweets_test.iterrows():
-        features_test.append(extract_all_features(row))
+        features_dev = []
+        for index, row in tweets_dev.iterrows():
+            features_dev.append(extract_all_features(row))
 
+        features_test = []
+        for index, row in tweets_test.iterrows():
+            features_test.append(extract_all_features(row))
+
+        pickle.dump(features_train, open('features_train.pickle', 'wb'))
+        pickle.dump(features_dev, open('features_dev.pickle', 'wb'))
+        pickle.dump(features_test, open('features_test.pickle', 'wb'))
 
     # drop pos column as unneded
     tweets_train.drop(['pos'], axis=1, inplace=True)
@@ -72,21 +82,31 @@ def main():
     d3 = datetime.now()
     # kernel='poly', C=200, gamma='scale': 14 mins, 71.77%
     # c_param = 25000; kernel_param = 'rbf'; gamma_param='scale'; 25 mins, 86.6%
+    # RandomForestClassifier n_estimators=1600, max_depth=8, 63% dev
+    # c_param = 0.01; kernel_param = 'linear'; 62.4 dev -- without 3-gram
+    # c_param = 0.065; kernel_param = 'linear'; 71.1 dev  -- without bigrams
 
-    c_param = 100; kernel_param = 'poly'; gamma_param='scale';
+    c_param = 0.01; kernel_param = 'linear'; gamma_param='scale';
 
     if os.path.exists('model.pickle'):
         print('model found. loading ...')
-        model = pickle.load(open( "model.pickle", "rb" ))
+        model = pickle.load(open("model.pickle", "rb"))
     else:
-        model = RandomForestClassifier(random_state=1, n_estimators=1600, max_depth=4)
-        # model = SVC(kernel=kernel_param, C=c_param, gamma=gamma_param)
-        # model = KNeighborsClassifier(7)
-        # print('training svm classification model C =',c_param, 'kernel:', kernel_param, 'gamma =', gamma_param)
+        #model = RandomForestClassifier(random_state=1, n_estimators=1600, max_depth=8)
+        model = SVC(kernel=kernel_param, C=c_param)
+        print('training svm classification model C =',c_param, 'kernel:', kernel_param)
         model.fit(features_train, classes_train)
         #pickle.dump(model, open('model.pickle', 'wb'))
 
     d4 = datetime.now()
+
+    # for cp in [0.002, 0.004, 0.007]:
+    #     mmodel = SVC(kernel=kernel_param, C=cp)
+    #     mmodel.fit(features_train, classes_train)
+    #     acc_train = mmodel.score(features_train, classes_train)
+    #     acc_dev = mmodel.score(features_dev, classes_dev)
+    #     print('C:', cp, 'Train acc:', acc_train, 'Dev acc:', acc_dev)
+    # exit()
 
     accuracy_train = model.score(features_train, classes_train)
     tweets_train['prediction'] = model.predict(features_train)

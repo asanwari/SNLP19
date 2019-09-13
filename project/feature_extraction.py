@@ -47,15 +47,15 @@ for k, v in word_clusters.items():
 tweets_train = pd.read_csv('train_final_out.tsv', sep='\t', names=['tweet', 'class', 'untokinzed_tweet'], header=None, quoting=csv.QUOTE_NONE, error_bad_lines=False)['tweet'].str.cat(sep=' ')
 tweets_dev = pd.read_csv('dev_final_out.tsv', sep='\t', names=['tweet', 'class', 'untokinzed_tweet'], header=None, quoting=csv.QUOTE_NONE, error_bad_lines=False)['tweet'].str.cat(sep=' ')
 
-bigrams = set()
+
 three_grams = set()
 
 for word in tweets_train.split():
-    bigrams.update([word[i:i+2] for i in range(len(word)-2+1)])
+
     three_grams.update([word[i:i+3] for i in range(len(word)-3+1)])
 
 for word in tweets_dev.split():
-    bigrams.update([word[i:i+2] for i in range(len(word)-2+1)])
+
     three_grams.update([word[i:i+3] for i in range(len(word)-3+1)])
 
 
@@ -197,19 +197,6 @@ def get_word_cluster_features(sent):
     return list(cluster_presence.values())
 
 
-def get_character_bigram_features(sent):
-    # the presence or absence of each of the character bigrams (~3.2K)
-    n = 2
-    bigram_presence = OrderedDict({bigram : 0 for bigram in bigrams})   # ordered dict to preserve the order of the feature vector
-    for word in sent:
-        word_grams = [word[i:i+n] for i in range(len(word)-n+1)]
-        for gram in word_grams:
-            if gram in bigram_presence:
-                bigram_presence[gram] = 1
-
-    return list(bigram_presence.values())
-
-
 def get_character_three_gram_features(sent):
     # the presence or absence of each of the character 3-grams (~15.4K)
     n = 3
@@ -226,14 +213,18 @@ def extract_all_features(tweet_row):
     sent = tweet_row['tweet'].split()
     pos_tags = tweet_row['pos']
     features = []
+    # lexicon features
     features.extend(get_lexicon_features(sent))
+    # word structure features
     features.extend(get_hashtag_features(sent))
     features.extend(get_punctuation_features(sent))
     features.extend(get_all_caps_features(sent))
     features.extend(get_elongated_words_features(sent))
+    # pos features
     features.extend(get_pos_features(pos_tags))
+    # word cluster features
     features.extend(get_word_cluster_features(sent))
-    #features.extend(get_character_bigram_features(sent))
+    # character n-gram features
     features.extend(get_character_three_gram_features(sent))
 
     return features

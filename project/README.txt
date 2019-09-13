@@ -2,7 +2,7 @@
 1. Download the neccessary data for feature extraction
     python download_data.py
 
-2. Run the code to train on train, and give train, dev accuracy and test predictions as test_predictions.txt
+2. Run the code to train on train, and give train, dev accuracy and test predictions as test_predictions.tsv
     python main.py
 
 

@@ -3,6 +3,7 @@ import pandas as pd
 from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.feature_selection import VarianceThreshold
 import csv
 from datetime import datetime
 import pickle
@@ -21,7 +22,6 @@ def main():
     tweets_dev = pd.read_csv('dev_final_out.tsv', sep='\t', names=['tweet', 'class', 'untokinzed_tweet'], header=None, quoting=csv.QUOTE_NONE, error_bad_lines=False).drop(['untokinzed_tweet'], axis=1)
     tweets_test = pd.read_csv('test_final_out.tsv', sep='\t', names=['tweet', 'untokinzed_tweet'], header=None, quoting=csv.QUOTE_NONE, error_bad_lines=False).drop(['untokinzed_tweet'], axis=1)
 
-    # make number of offensive = not offensive
 
 
     # # read pos-tagged tweets
@@ -34,6 +34,8 @@ def main():
     tweets_dev['pos'] = pos_dev
     tweets_test['pos'] = pos_test
 
+
+    # 50% NOT, 50% OFF. Otherwise, data is biased towards NOT class
     tweets_train = pd.concat([tweets_train[tweets_train['class']=='OFF'], tweets_train[tweets_train['class']=='NOT'].head(3400)], ignore_index=True)
 
     # extract features
@@ -57,6 +59,14 @@ def main():
         features_test = []
         for index, row in tweets_test.iterrows():
             features_test.append(extract_all_features(row))
+
+        # conduct prelimenary feature selection. Remove features that have the same value in 95% of the train samples.
+        # print('Number of features before feature selection: ', np.shape(features_train)[1])
+        # selection = VarianceThreshold(threshold=(.95 * (1 - .95)))
+        # features_train = selection.fit_transform(features_train)
+        # features_dev = selection.transform(features_dev)
+        # features_test = selection.transform(features_test)
+        # print('Number of features after feature selection: ', np.shape(features_train)[1])
 
         pickle.dump(features_train, open('features_train.pickle', 'wb'))
         pickle.dump(features_dev, open('features_dev.pickle', 'wb'))
@@ -86,27 +96,27 @@ def main():
     # c_param = 0.01; kernel_param = 'linear'; 62.4 dev -- without 3-gram
     # c_param = 0.065; kernel_param = 'linear'; 71.1 dev  -- without bigrams
 
-    c_param = 0.01; kernel_param = 'linear'; gamma_param='scale';
+    c_param = 0.065; kernel_param = 'linear'; gamma_param='scale';
 
     if os.path.exists('model.pickle'):
         print('model found. loading ...')
         model = pickle.load(open("model.pickle", "rb"))
     else:
-        #model = RandomForestClassifier(random_state=1, n_estimators=1600, max_depth=8)
+        # model = RandomForestClassifier(random_state=1, n_estimators=3000, max_depth=8)
         model = SVC(kernel=kernel_param, C=c_param)
         print('training svm classification model C =',c_param, 'kernel:', kernel_param)
-        model.fit(features_train, classes_train)
+        #model.fit(features_train, classes_train)
         #pickle.dump(model, open('model.pickle', 'wb'))
 
     d4 = datetime.now()
 
-    # for cp in [0.002, 0.004, 0.007]:
-    #     mmodel = SVC(kernel=kernel_param, C=cp)
-    #     mmodel.fit(features_train, classes_train)
-    #     acc_train = mmodel.score(features_train, classes_train)
-    #     acc_dev = mmodel.score(features_dev, classes_dev)
-    #     print('C:', cp, 'Train acc:', acc_train, 'Dev acc:', acc_dev)
-    # exit()
+    for cp in [0.025, 0.035, 0.009, 0.007]:
+        mmodel = SVC(kernel=kernel_param, C=cp)
+        mmodel.fit(features_train, classes_train)
+        acc_train = mmodel.score(features_train, classes_train)
+        acc_dev = mmodel.score(features_dev, classes_dev)
+        print('C:', cp, 'Train acc:', acc_train, 'Dev acc:', acc_dev)
+    exit()
 
     accuracy_train = model.score(features_train, classes_train)
     tweets_train['prediction'] = model.predict(features_train)
@@ -126,11 +136,14 @@ def main():
     print('Dev Confusion Matrix:')
     print(pd.crosstab(tweets_dev['class'], tweets_dev['prediction'], margins=True))
     print('Dev Accuracy:', accuracy_dev)
+    tweets_dev[tweets_dev['class'] != tweets_dev['prediction']].to_csv('dev_errors.tsv', sep='\t')
 
 
     predictions_test = model.predict(features_test)
     tweets_test['prediction'] = predictions_test
     print('\n\nTest Predictions:\n', tweets_test)
+    tweets_test['prediction'].to_csv('test_predictions.csv')
+    tweets_test.to_csv('test_output.tsv', sep='\t')
 
 
     print('\n\n\nTime Taken:')

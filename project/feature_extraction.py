@@ -3,6 +3,7 @@ import pandas as pd
 import csv
 import re
 from collections import OrderedDict
+from operator import add
 
 
 ################################################
@@ -59,6 +60,12 @@ for word in tweets_dev.split():
     three_grams.update([word[i:i+3] for i in range(len(word)-3+1)])
 
 
+# prepare glove representations
+glove200 = {}
+with open('glove_200.txt', 'r', encoding='utf-8') as file:
+    for line in file:
+        line_split = line.split()
+        glove200[line_split[0]] = [float(i) for i in line_split[1:]]
 
 ###########################################################
 
@@ -142,10 +149,6 @@ def get_lexicon_features(sent):
     return nrc_unigram_features + nrc_bigram_features + sentiment140_unigram_features + sentiment140_bigram_features
 
 
-def get_hashtag_features(sent):
-    num_hashtags = len([s for s in sent if s[0] == '#'])
-    return [num_hashtags]
-
 def get_punctuation_features(sent):
     # num of continguous sequences of ? or ! in the tweet
     num_contiguous_marks = 0
@@ -190,8 +193,8 @@ def get_word_cluster_features(sent):
     # occurence of each of the ~1000 word clusters provided by the CMU NLP tool
     cluster_presence = OrderedDict({cluster : 0 for cluster in cluster_set})   # ordered dict to preserve the order of the feature vector
     for word in sent:
-        if word in word_clusters:
-            cluster = word_clusters[word]
+        if word.lower() in word_clusters:
+            cluster = word_clusters[word.lower()]
             cluster_presence[cluster] = 1
 
     return list(cluster_presence.values())
@@ -209,6 +212,17 @@ def get_character_three_gram_features(sent):
 
     return list(three_gram_presence.values())
 
+
+def get_glove200_features(sent):
+    # average glove representation
+    representation = [i*0 for i in range(200)]
+    for word in sent:
+        if word.lower() in glove200:
+            representation = list(map(add, representation, glove200[word.lower()]))     # add two lists element-wise
+
+    return representation #[i / len(sent) for i in representation]
+
+
 def extract_all_features(tweet_row):
     sent = tweet_row['tweet'].split()
     pos_tags = tweet_row['pos']
@@ -216,7 +230,6 @@ def extract_all_features(tweet_row):
     # lexicon features
     features.extend(get_lexicon_features(sent))
     # word structure features
-    features.extend(get_hashtag_features(sent))
     features.extend(get_punctuation_features(sent))
     features.extend(get_all_caps_features(sent))
     features.extend(get_elongated_words_features(sent))
@@ -225,6 +238,8 @@ def extract_all_features(tweet_row):
     # word cluster features
     features.extend(get_word_cluster_features(sent))
     # character n-gram features
-    features.extend(get_character_three_gram_features(sent))
+    #features.extend(get_character_three_gram_features(sent))
+    # glove features
+    features.extend(get_glove200_features(sent))
 
     return features

@@ -11,6 +11,7 @@ url_dev_final_out = 'https://raw.githubusercontent.com/asanwari/SNLP19/master/pr
 url_dev_final_out_pos = 'https://raw.githubusercontent.com/asanwari/SNLP19/master/project/dev_final_out_pos.tsv'
 url_test_final_out = 'https://raw.githubusercontent.com/asanwari/SNLP19/master/project/test_final_out.tsv'
 url_test_final_out_pos = 'https://raw.githubusercontent.com/asanwari/SNLP19/master/project/test_final_out_pos.tsv'
+url_glove_200 = 'https://raw.githubusercontent.com/asanwari/SNLP19/master/project/glove_200.txt'
 
 urllib.urlretrieve(url_nrc_bigrams, 'url_nrc_bigrams.tsv')
 urllib.urlretrieve(url_nrc_unigrams, 'url_nrc_unigrams.tsv')
@@ -23,3 +24,4 @@ urllib.urlretrieve(url_dev_final_out, 'url_dev_final_out.tsv')
 urllib.urlretrieve(url_dev_final_out_pos, 'url_dev_final_out_pos.tsv')
 urllib.urlretrieve(url_test_final_out, 'url_test_final_out.tsv')
 urllib.urlretrieve(url_test_final_out_pos, 'url_test_final_out_pos.tsv')
+urllib.urlretrieve(url_glove_200, 'glove_200.txt')

@@ -6,13 +6,19 @@
     python main.py
 
 
+##### Libraries Required ####
+Python 3
+Scikit Learn
+Pandas
+Numpy
+    
 
-#### FILE DESCRIPTION #####
+##### FILE DESCRIPTION ######
 
 1. CODE
     main.py: main code. Runs feature extraction and train the model on tra
-    feature_extraction.py: 
-    download_data.py: 
+    feature_extraction.py: extracts features from tweets. Called in main.py.
+    download_data.py: Downloads the neccessary data files from our git repo.
 2. DATA
     nrc_unigrams: unigram sentiment scores from NRC dataset
     nrc_bigrams: bigram sentiment scores from NRC dataset

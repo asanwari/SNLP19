@@ -42,6 +42,7 @@ def main():
     d2 = datetime.now()
 
     if os.path.exists('features_train.pickle') & os.path.exists('features_dev.pickle') & os.path.exists('features_test.pickle'):
+        # read features from disk if possible
         print('features found on disk. reading ...')
         features_train = pickle.load(open( "features_train.pickle", "rb" ))
         features_dev = pickle.load(open( "features_dev.pickle", "rb" ))
@@ -60,14 +61,7 @@ def main():
         for index, row in tweets_test.iterrows():
             features_test.append(extract_all_features(row))
 
-        # conduct prelimenary feature selection. Remove features that have the same value in 95% of the train samples.
-        # print('Number of features before feature selection: ', np.shape(features_train)[1])
-        # selection = VarianceThreshold(threshold=(.95 * (1 - .95)))
-        # features_train = selection.fit_transform(features_train)
-        # features_dev = selection.transform(features_dev)
-        # features_test = selection.transform(features_test)
-        # print('Number of features after feature selection: ', np.shape(features_train)[1])
-
+        # save features so we don't extract them over and over
         pickle.dump(features_train, open('features_train.pickle', 'wb'))
         pickle.dump(features_dev, open('features_dev.pickle', 'wb'))
         pickle.dump(features_test, open('features_test.pickle', 'wb'))
@@ -90,33 +84,18 @@ def main():
 
     # apply svm
     d3 = datetime.now()
-    # kernel='poly', C=200, gamma='scale': 14 mins, 71.77%
-    # c_param = 25000; kernel_param = 'rbf'; gamma_param='scale'; 25 mins, 86.6%
-    # RandomForestClassifier n_estimators=1600, max_depth=8, 63% dev
-    # c_param = 0.01; kernel_param = 'linear'; 62.4 dev -- without 3-gram
-    # c_param = 0.065; kernel_param = 'linear'; 71.1 dev  -- without bigrams
+    # initial model best C: 0.065
+    # improved model best C: 0.0005
+    # to for initial model, enable get_character_three_gram_features at line 247 in feature_extraction.py and disable get_glove200_features()
+    # for improved model, simply do the opposite. Dont forget to delete the saved features on disk, when you change. Also use the corresponding value of C.
 
-    c_param = 0.065; kernel_param = 'linear'; gamma_param='scale';
+    c_param = 0.0005; kernel_param = 'linear';
 
-    if os.path.exists('model.pickle'):
-        print('model found. loading ...')
-        model = pickle.load(open("model.pickle", "rb"))
-    else:
-        # model = RandomForestClassifier(random_state=1, n_estimators=3000, max_depth=8)
-        model = SVC(kernel=kernel_param, C=c_param)
-        print('training svm classification model C =',c_param, 'kernel:', kernel_param)
-        #model.fit(features_train, classes_train)
-        #pickle.dump(model, open('model.pickle', 'wb'))
+    model = SVC(kernel=kernel_param, C=c_param)
+    print('training svm classification model C =',c_param, 'kernel:', kernel_param)
+    model.fit(features_train, classes_train)
 
     d4 = datetime.now()
-
-    for cp in [0.025, 0.035, 0.009, 0.007]:
-        mmodel = SVC(kernel=kernel_param, C=cp)
-        mmodel.fit(features_train, classes_train)
-        acc_train = mmodel.score(features_train, classes_train)
-        acc_dev = mmodel.score(features_dev, classes_dev)
-        print('C:', cp, 'Train acc:', acc_train, 'Dev acc:', acc_dev)
-    exit()
 
     accuracy_train = model.score(features_train, classes_train)
     tweets_train['prediction'] = model.predict(features_train)
@@ -136,14 +115,14 @@ def main():
     print('Dev Confusion Matrix:')
     print(pd.crosstab(tweets_dev['class'], tweets_dev['prediction'], margins=True))
     print('Dev Accuracy:', accuracy_dev)
-    tweets_dev[tweets_dev['class'] != tweets_dev['prediction']].to_csv('dev_errors.tsv', sep='\t')
+    #tweets_dev[tweets_dev['class'] != tweets_dev['prediction']].to_csv('dev_errors.tsv', sep='\t')
 
 
     predictions_test = model.predict(features_test)
     tweets_test['prediction'] = predictions_test
     print('\n\nTest Predictions:\n', tweets_test)
-    tweets_test['prediction'].to_csv('test_predictions.csv')
-    tweets_test.to_csv('test_output.tsv', sep='\t')
+    tweets_test['prediction'].to_csv('predictions.test', header=False, index=False)
+    #tweets_test.to_csv('test_output.tsv', sep='\t')
 
 
     print('\n\n\nTime Taken:')
